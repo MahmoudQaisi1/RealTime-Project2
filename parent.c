@@ -1,95 +1,145 @@
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+#include <sys/wait.h>
 #include "local.h"
 
-
-
-
-main(int argc, char *argv[])
+void create_messages(SharedMemory *shared_memory)
 {
-  pid_t          sender_id, receiver_id,master_spy_id, pid = getpid();
-  int            i,numOfHelpers,numOfSpies;
+  char messages[5][5][150] = {
+      {"1", "World", "OpenAI", "ChatGPT", "Shared Memory"},
+      {"2", "C", "Python", "Java", "Ruby"},
+      {"3", "Windows", "MacOS", "Unix", "BSD"},
+      {"4", "Mutex", "Lock", "Thread", "Process"},
+      {"5", "TCP", "UDP", "HTTP", "IP"}
 
+  };
 
-  if ( argc != 3 ) {
-    fprintf(stderr, "%s Number_of_helpers number_of_spies \n", argv[0]);
-    exit(-1);
-  }
-
-  numOfHelpers = atoi(argv[1]);
-  numOfSpies = atoi(argv[2]);
-
-  pid_t           helpers_id[numOfHelpers];
-  pid_t           spies_id[numOfSpies];
-
-  // forking the needed processes//////////////////////////////////////////////////////////////
-  //sender////////
-  if ( (sender_id = fork()) == -1 ) {
-    perror("fork -- sender");
-    exit(5); 
-  }
-  else if ( sender_id == 0 ) {
-    execl("./sender", "./sender", argv[1], (char *) 0);
-    perror("execl -- sender");
-    exit(6);
-  }
-  sleep(0.5);
-
-  //receiver//////
-  if ( (receiver_id = fork()) == -1 ) {
-    perror("fork -- receiver");
-    exit(5); 
-  }
-  else if ( receiver_id == 0 ) {
-    execl("./receiver", "./receiver", argv[1], (char *) 0);
-    perror("execl -- receiver");
-    exit(6);
-  }
-  sleep(0.5);
-
-  //master Spy/////
-  if ( (master_spy_id = fork()) == -1 ) {
-    perror("fork -- master spy");
-    exit(5); 
-  }
-  else if ( master_spy_id == 0 ) {
-    execl("./master_spy", "./master_spy", argv[1], (char *) 0);
-    perror("execl -- master spy");
-    exit(6);
-  }
-  sleep(0.5);
-
-  //helpers////////////////////
-  for ( i = 0; i < numOfHelpers; i++)
+  int i, j;
+  for (i = 0; i < 5; i++)
   {
-    if ( (helpers_id[i] = fork()) == -1 ) {
-      perror("fork -- helper");
-      exit(5); 
-    }
-    else if ( helpers_id[i] == 0 ) {
-      execl("./helper", "./helper", argv[1], (char *) 0);
-      perror("execl -- helper");
-      exit(6);
-    }
-    sleep(0.5);
-  }
+    for (j = 0; j < 5; j++)
+    {
 
-  //spies///////////////////
-  for ( i = 0; i < numOfSpies; i++)
+      strcpy(shared_memory[i].message[j], messages[i][j]);
+      printf("  String %d: %s\n", j + 1, shared_memory[i].message[j]);
+    }
+  }
+}
+
+
+int main()
+{
+
+  int user_spy = 1;
+  int spy = 0;
+  pid_t spy_pid_array[user_spy];
+  char spies[10];
+
+  key_t key = ftok(".", 'S');
+
+  int shmid = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
+  if (shmid < 0)
   {
-    if ( (spies_id[i] = fork()) == -1 ) {
-      perror("fork -- spy");
-      exit(5); 
-    }
-    else if ( helpers_id[i] == 0 ) {
-      execl("./spy", "./spy", argv[1], (char *) 0);
-      perror("execl -- spy");
-      exit(6);
-    }
-    sleep(0.5);
+    perror("shmget");
+    exit(1);
   }
 
-  //Clean House////////////////////////////////////////////////////////////////////////////////
-  
+  SharedMemory *shared_memory = (SharedMemory *)shmat(shmid, NULL, 0);
+  if (shared_memory == (SharedMemory *)-1)
+  {
+    perror("shmat");
+    exit(1);
+  }
 
-  exit(0);
+  int sem_id = semget(key, 1, IPC_CREAT | 0666);
+  if (sem_id < 0)
+  {
+    perror("semget");
+    exit(1);
+  }
+
+  union semun sem_union;
+  sem_union.val = 1;
+  semctl(sem_id, 0, SETVAL, sem_union);
+
+  create_messages(shared_memory);
+
+  for (int i = 0; i < user_spy; i++)
+  {
+    spy++;
+    snprintf(spies, 10, "%d", spy);
+    spy_pid_array[spy - 1] = fork();
+    if (spy_pid_array[spy - 1] == 0)
+    {
+      execlp("./spy", "spy", spies, NULL); // path to projet file
+      printf("Error!! generating player %d", spy);
+    }
+  }
+
+  pid_t receiver_pid = fork();
+  if (receiver_pid == 0)
+  {
+    execlp("./receiver", "receiver", NULL);
+    printf("Error!! generating receiver");
+  }
+
+  if (receiver_pid > 0)
+  {
+    int status;
+    int flag = 0;
+    while (1)
+    {
+
+      // Wait for any child to finish
+      pid_t finished_child = wait(&status);
+
+      if (finished_child == receiver_pid)
+      {
+        printf("Operation successful\n");
+        flag = 1;
+      }
+      if (finished_child == spy_pid_array[0])
+      {
+        printf("Operation failed\n");
+        flag = 1;
+      }
+      if (flag == 1)
+      {
+        for (int i = 0; i < user_spy; i++)
+        {
+          kill(spy_pid_array[i], SIGKILL);
+          printf("Process ID %d has terminated\n", spy_pid_array[i]);
+        }
+        kill(receiver_pid, SIGKILL);
+        shmdt(shared_memory);
+        shmctl(shmid, IPC_RMID, NULL);
+        semctl(sem_id, 0, IPC_RMID, 0);
+        break;
+      }
+    }
+    // Parent process
+    /*
+            wait_semaphore(sem_id);
+            printf("Parent Process: Messages in shared memory:\n");
+            int i, j;
+            for (i = 0; i <5; i++) {
+                printf("Message %d:\n", i+1);
+                for (j = 0; j < 5; j++) {
+                    printf("  String %d: %s\n", j+1, shared_memory[i].message[j]);
+                }
+            }
+            signal_semaphore(sem_id);
+    */
+  }
+  else
+  {
+    perror("fork");
+    exit(1);
+  }
+
+  return 0;
 }
