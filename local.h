@@ -8,13 +8,15 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 
-#define SHM_SIZE 1024
-#define colLength 5
-#define colWidth 150
+#define MaxLength 200
+
+#define SHM_SIZE 200
+#define MaxWidth 500
+
 
 typedef struct
 {
-  char message[colLength][colWidth];
+  char message[MaxWidth];
 } SharedMemory;
 
 union semun
