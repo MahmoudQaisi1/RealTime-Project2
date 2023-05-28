@@ -1,18 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
-#include <string.h>
+
 
 #include "local.h"
 
 int main(int argc, char *argv[])
 {
-        sleep(0.8);
+    usleep(2000);
 
-      printf("im in spy\n");
+    printf("im in spy\n");
     int flag = 0;
     int num_of_colomns = atoi(argv[2]);
 
@@ -25,6 +19,7 @@ int main(int argc, char *argv[])
         perror("shmget");
         exit(1);
     }
+    // call first shared memory////////////
 
     SharedMemory *shared_memory = (SharedMemory *)shmat(shmid, NULL, 0);
     if (shared_memory == (SharedMemory *)-1)
@@ -42,7 +37,7 @@ int main(int argc, char *argv[])
 
     int masterPid = atoi(argv[1]);
 
-    //printf("master Pid = %s \n", argv[1]);
+    // call second shared memory to comminucate with master spy////////////
 
     int shmid2 = shmget(masterPid, SHM_SIZE, 0);
     if (shmid2 < 0)
@@ -67,29 +62,35 @@ int main(int argc, char *argv[])
 
     while (1)
     {
-
-        wait_semaphore(sem_id);
-        //printf("spy Process: Messages in shared memory:\n");
-        int j;
         int random_index = rand() % num_of_colomns;
-
+        wait_semaphore(sem_id);
         wait_semaphore(sem_id2);
-        printf("**spy Process: I got Message %d**\n", random_index + 1);
-        
-        strncpy(shared_memory2[random_index].message, shared_memory[random_index].message,MaxWidth -1);    
+
+        if (strlen(shared_memory[random_index].message) == 0)
+        {
+            printf("**spy Process:  Message at index %d is Empty**\n", random_index + 1);
+        }
+        else
+        {
+            char Tstr[MaxWidth];
+            strncpy(Tstr, shared_memory[random_index].message, MaxWidth - 1);
+
+            char *snum;
+            int colomn_num;
+            snum = strtok(Tstr, "/");
+            if (snum != NULL)
+            {
+                colomn_num = atoi(snum);
+                int i = colomn_num - 1;
+                strncpy(shared_memory2[i].message, shared_memory[random_index].message, MaxWidth - 1);
+                printf("**spy Process: I got Message %d at index %d**\n", i + 1, random_index + 1);
+            }
+        }
+
         signal_semaphore(sem_id2);
-
-        //    for (j = 1; j < 5; j++)
-        //    {
-        //        printf("  String %d: %s\n", j, shared_memory[random_index].message[j]);
-        //    }
         signal_semaphore(sem_id);
-        sleep(0.3);
+        usleep(1000);
     }
-    shmdt(shared_memory);
-    shmdt(shared_memory2);
-
-    exit(0); // Terminate the child process
 
     return 0;
 }
