@@ -1,3 +1,5 @@
+DEFAULT_ARGS = 1 1
+
 all: parent helper spy sender receiver master_spy child
 
 parent: parent.c
@@ -22,7 +24,10 @@ child: child.c
 	gcc -g child.c -o child
 
 run:
-	./parent
+	./parent $(ARGS)
+
+default-run:
+	./parent $(DEFAULT_ARGS)
 
 clean:
 	rm -f parent spy receiver master_spy child sender helper 

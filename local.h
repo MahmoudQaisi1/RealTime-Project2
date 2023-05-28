@@ -15,12 +15,12 @@
 #include <sys/shm.h>
 #include <wait.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <math.h>
 
-#define ROWS   5
-#define COLS   3
 
-#define SLOT_LEN  50
-#define N_SLOTS   6
+#define SLOT_LEN  1024
+#define N_SLOTS   10
 
 /* This declaration is *MISSING* is many solaris environments.
    It should be in the <sys/sem.h> file but often is not! If 
