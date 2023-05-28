@@ -1,14 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
-#include <string.h>
 
 #include "local.h"
 
-int isStringInteger(char *str)
+int isStringInteger(char *str)      //////// check if the string contain an integer///////////
 {
     if (str == NULL || *str == '\0')
     {
@@ -23,7 +16,6 @@ int isStringInteger(char *str)
     {
         return 0;
     }
-    // Check for remaining digits
     i++;
     while (str[i] != '\0')
     {
@@ -36,7 +28,7 @@ int isStringInteger(char *str)
     return 1;
 }
 
-// Function to split a string into words based on a delimiter
+// Function to split a string into words based on a delimiter/////////
 char **splitString(char *str, const char *delimiter, int *wordCount)
 {
     char *token;
@@ -56,6 +48,7 @@ char **splitString(char *str, const char *delimiter, int *wordCount)
     return words;
 }
 
+// Decode Function to decode special words/////////
 void replaceStrings(char columns[MaxLength][MaxWidth], int colLength)
 {
     for (int j = 1; j < colLength; j++)
@@ -94,6 +87,7 @@ void replaceStrings(char columns[MaxLength][MaxWidth], int colLength)
     }
 }
 
+// Decode Function to decode noraml words/////////
 void decodeMessage(char columns[MaxLength][MaxWidth], int colLength)
 {
     int col = atoi(columns[0]);
@@ -127,18 +121,35 @@ void decodeMessage(char columns[MaxLength][MaxWidth], int colLength)
     }
 }
 
+void sendsignal(int);
+
+int num_of_colomns;
+char columns[MaxLength][MaxWidth];
+
+int flag;
+int *isRecived;
+int shmid;
+SharedMemory *shared_memory;
+int sem_id;
+
 int main(int argc, char *argv[])
 {
+    if (signal(SIGUSR1, sendsignal) == SIG_ERR) // SIG_ERR = -1
+    {
+        perror("Sigset can not set SIGUSR1");
+        exit(SIGUSR1);
+    }
+
+    usleep(500);
     printf("im in receiver\n");
 
-    int num_of_colomns = atoi(argv[1]);
-    char columns[num_of_colomns][MaxWidth];
+    num_of_colomns = atoi(argv[1]);
 
-    int flag = 0;
+    flag = 0;
 
     srand((unsigned)getpid());
 
-    int *isRecived = (int *)calloc(num_of_colomns, sizeof(int));
+    isRecived = (int *)calloc(num_of_colomns, sizeof(int)); ////to check if we have recived all the colomns//////////
     if (isRecived == NULL)
     {
         printf("Memory allocation failed.\n");
@@ -148,73 +159,93 @@ int main(int argc, char *argv[])
 
     pid_t ppid = getppid();
 
-    int shmid = shmget((int)ppid, SHM_SIZE, 0);
+    shmid = shmget((int)ppid, SHM_SIZE, 0);
     if (shmid < 0)
     {
         perror("shmget");
         exit(1);
     }
 
-    SharedMemory *shared_memory = (SharedMemory *)shmat(shmid, NULL, 0);
+    shared_memory = (SharedMemory *)shmat(shmid, NULL, 0);
     if (shared_memory == (SharedMemory *)-1)
     {
         perror("shmat");
         exit(1);
     }
 
-    int sem_id = semget((int)ppid, 1, 0);
+    sem_id = semget((int)ppid, 1, 0);
     if (sem_id < 0)
     {
         perror("semget");
         exit(1);
     }
+
+    while (1);
+
+    return 0;
+}
+
+void sendsignal(int the_signal)
+{
+    flag = 0;
     while (flag == 0)
     {
         wait_semaphore(sem_id);
         int j;
         int random_index = rand() % num_of_colomns;
 
-    char Tstr[MaxWidth];
-    strncpy(Tstr, shared_memory[random_index].message, MaxWidth - 1);
+        if (strlen(shared_memory[random_index].message) != 0) /////read from the shared memory at a random index//////
+        {
 
-    char *snum;
-    int num;
-    snum = strtok(Tstr, "/");
-    if (snum != NULL) {
-        num = atoi(snum);
-        isRecived[num - 1] = 1;
-        int i = num - 1;
-        printf("~~receiver Process: I got Message %d~~\n",i+1);    
-        strncpy(columns[i], shared_memory[i].message, MaxWidth - 1);
-    }
+            char Tstr[MaxWidth];
+            strncpy(Tstr, shared_memory[random_index].message, MaxWidth - 1);
+
+            char *snum;
+            int num;
+            snum = strtok(Tstr, "/");
+            if (snum != NULL)
+            {
+                num = atoi(snum);
+                isRecived[num - 1] = 1;
+                int i = num - 1;
+                printf("~~receiver Process: I got Message %d at index %d~~\n", i + 1, random_index + 1);
+                strncpy(columns[i], shared_memory[random_index].message, MaxWidth - 1);
+            }
+        }
+        else
+        {
+            printf("~~receiver Process: Message at index %d is empty~~\n", random_index + 1);
+        }
         signal_semaphore(sem_id);
 
-        for (int i = 0; i < num_of_colomns; i++)
+        for (int i = 0; i < num_of_colomns; i++) /////check if we have recived all the colomns//////
         {
             if (isRecived[i] == 0)
             {
                 flag = 0;
                 break;
             }
-            else{
+            else
+            {
                 flag = 1;
             }
         }
-        sleep(0.3);
+        usleep(500);
     }
     printf("++++++++++++++Receiver Got all the colomns+++++++++++++++\n");
 
+    /////decode the colomns//////////////////////////////////////////////////////
     int colLength = 0;
     char tempString[MaxWidth];
     strncpy(tempString, columns[0], MaxWidth);
 
-    char *token = strtok(tempString, "/"); // Assuming space as the word delimiter
+    char *token = strtok(tempString, "/"); // find the colomn length////////////
     while (token != NULL)
     {
         colLength++;
         token = strtok(NULL, "/");
     }
-    char allwords[num_of_colomns][colLength][MaxWidth];
+    char allwords[num_of_colomns][colLength][MaxWidth]; // split the colomn string inside an array////////////
 
     for (int i = 0; i < num_of_colomns; i++)
     {
@@ -249,14 +280,14 @@ int main(int argc, char *argv[])
         {
             fprintf(file, "%s ", allwords[col][row]); // Write to the file
         }
-        fprintf(file, "\n"); // Write a new line to the file
+        fprintf(file, "\n");
     }
 
     fclose(file); // Close the file
-    free(isRecived);
-
-    shmdt(shared_memory);
-    exit(0); // Terminate the child process
-
-    return 0;
+    for (int i = 0; i < num_of_colomns; i++) /////// erase the previous results //////////
+    {
+        isRecived[i] = 0;
+        strncpy(columns[i], "", MaxWidth);
+    }
+    kill(getppid(), SIGUSR1); ///////send signal to parent that decoding is done /////////////////////
 }
