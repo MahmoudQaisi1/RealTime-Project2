@@ -7,12 +7,14 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <signal.h>
 
 #define MaxLength 200
 
 #define SHM_SIZE 200
 #define MaxWidth 500
-
 
 typedef struct
 {
