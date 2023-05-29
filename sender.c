@@ -4,13 +4,7 @@
 
 main(int argc, char *argv[])
 {
-    static struct  MEMORY memory;
-    struct MEMORY *memptr;
-    static ushort  start_val[2] = {N_SLOTS, 0};
-    int            semid, shmid, croaker;
-    char          *shmptr;
-    union semun    arg;
-    pid_t          pid=getpid();
+    pid_t          pid=getpid(),ppid = getppid();
     char line[1024];
     int maxWords = 0;
     int currentWords = 0;
@@ -68,22 +62,56 @@ main(int argc, char *argv[])
     }
     fclose(file);
 
+    //Accessing the shared memory and semaphores//////////////////////////////////////////////////////////
+    int shmid = shmget((int)ppid, SHM_SIZE, 0);
+    if (shmid < 0)
+    {
+        perror("shmget");
+        exit(1);
+    }
+
+    SharedMemory *shared_memory = (SharedMemory *)shmat(shmid, NULL, 0);
+    if (shared_memory == (SharedMemory *)-1)
+    {
+        perror("shmat");
+        exit(1);
+    }
+
+    int sem_id = semget((int)ppid, 1, 0);
+    if (sem_id < 0)
+    {
+        perror("semget");
+        exit(1);
+    }
+
+
     // forking the needed children processes//////////////////////////////////////////////////////////////
     pid_t child[maxWords];
     char arg1[10];
     sprintf(arg1,"%d",(int)getppid());
     for (i = 0; i < maxWords; i++)
-    {      
-    if ( (child[i] = fork()) == -1 ) {
-        perror("fork -- child");
-        exit(5); 
+    {     
+        if ( (child[i] = fork()) == -1 ) {
+            perror("fork -- child");
+            exit(5); 
+        }
+        else if ( child[i] == 0 ) {
+            execl("./child", "./child",arg1,array[i], (char *) 0);
+            perror("execl -- child");
+            exit(6);
+        }
+        printf("child: %d\n",(int)child[i]);
+    sleep(1.5);
     }
-    else if ( child[i] == 0 ) {
-        execl("./child", "./child",arg1,array[i], (char *) 0);
-        perror("execl -- child");
-        exit(6);
-    }
-    sleep(0.5);
-    }
-    exit(0);
+    sleep(2);
+    //Waking up parent and sending the number of columns needed///////////////////////////////////////////
+    char columnStr[10];
+    sprintf(columnStr,"%d",maxWords);
+    strcpy(shared_memory[0].message,columnStr);
+    printf("Done coding the message...\n");
+    
+    kill(getppid(),SIGCONT);
+
+    while (1);//waiting for more instructions...
+    
 }

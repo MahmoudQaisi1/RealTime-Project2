@@ -13,36 +13,46 @@
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
-#include <wait.h>
+#include <sys/wait.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <math.h>
 
+#define SHM_SIZE 200
+#define MaxLength 200
+#define MaxWidth 1024
 
-#define SLOT_LEN  1024
-#define N_SLOTS   10
+typedef struct
+{
+  char message[MaxWidth];
+} SharedMemory;
 
-/* This declaration is *MISSING* is many solaris environments.
-   It should be in the <sys/sem.h> file but often is not! If 
-   you receive a duplicate definition error message for semun
-   then comment out the union declaration.
-   */
-
-union semun {
-  int              val;
+union semun
+{
+  int val;
   struct semid_ds *buf;
-  ushort          *array; 
+  unsigned short *array;
 };
 
-struct MEMORY {
-  char buffer[N_SLOTS][SLOT_LEN];
-  int  head, tail;
-};
+void wait_semaphore(int sem_id);
+void signal_semaphore(int sem_id);
+void wait_semaphore(int sem_id)
+{
+  struct sembuf operation;
+  operation.sem_num = 0;
+  operation.sem_op = -1;
+  operation.sem_flg = SEM_UNDO;
+  semop(sem_id, &operation, 1);
+}
 
-struct sembuf acquire = {0, -1, SEM_UNDO}, 
-              release = {0,  1, SEM_UNDO};
-
-enum {AVAIL_SLOTS, TO_CONSUME};
-
+void signal_semaphore(int sem_id)
+{
+  struct sembuf operation;
+  operation.sem_num = 0;
+  operation.sem_op = 1;
+  operation.sem_flg = SEM_UNDO;
+  semop(sem_id, &operation, 1);
+}
 #endif
+
 

@@ -5,41 +5,44 @@
 main(int argc, char *argv[])
 {
     int semid, shmid;
-    char          *shmptr;
-    struct MEMORY *memptr;
-    int i,column, wordChar = 1;
+    SharedMemory *shared_memory;
+    int i, column, wordChar = 1;
     pid_t parent_pid = (pid_t) atoi(argv[1]);
     char message[1024];
     strcpy(message,argv[2]);
-
-    if ( (shmid = shmget((int) parent_pid, 0, 0)) != -1 ) {
-    if ( (shmptr = (char *) shmat(shmid, (char *)0, 0)) 
-	 == (char *) -1 ) {
-      perror("shmat -- consumer -- attach");
-      exit(1);
-    }
-    memptr = (struct MEMORY *) shmptr;
-  }
-  else {
-    perror("shmget -- consumer -- access");
-    exit(2);
-  }
-  
-  /*
-   * Access the semaphore set
-   */
-  if ( (semid = semget((int) parent_pid, 2, 0)) == -1 ) {
-    perror("semget -- consumer -- access");
-    exit(3);
-  }
     
     int startIndex,finishIndex, number;
     char *token = strtok(message, "/");
     column = atoi(token);
     strcpy(message,argv[2]);
-    printf("this is message: %s\n",message);
+    int nullChar;
+
+
+    shmid = shmget((int)parent_pid, SHM_SIZE, 0);
+    if (shmid < 0)
+    {
+        perror("shmget");
+        exit(1);
+    }
+    shared_memory = (SharedMemory *)shmat(shmid, NULL, 0);
+    if (shared_memory == (SharedMemory *)-1)
+    {
+        perror("shmat");
+        exit(1);
+    }
+
+    int sem_id = semget((int)parent_pid, 1, 0);
+    if (sem_id < 0)
+    {
+        perror("semget");
+        exit(1);
+    }
     for (i = 2; i < 1024; i++)
     {
+        if(message[i] == '\0'){
+            nullChar = i;
+            break;
+        }
         switch (message[i])
         {
         case 'A'...'Z':
@@ -90,27 +93,13 @@ main(int argc, char *argv[])
             break;
         }
     }
-    
-    srand((unsigned)getpid());
-    sleep(rand()%10 +1);
-    acquire.sem_num = AVAIL_SLOTS;
-    
-    if ( semop(semid, &acquire, 1) == -1 ) {
-      perror("semop -- child -- acquire");
-      exit(4);
-    }
-    strcpy(memptr->buffer[memptr->tail], message);
-    printf("coded: [%d] %s.\n", memptr->tail, memptr->buffer[memptr->tail]);
-    
-    memptr->tail = (memptr->tail + 1) % N_SLOTS;
 
-    release.sem_num = TO_CONSUME;
-    
-    if ( semop(semid, &release, 1) == -1 ) {
-      perror("semop -- child -- release");
-      exit(5);
-    }
+    wait_semaphore(sem_id);
+    strncpy(shared_memory[column].message,message,nullChar);
+    printf("%s\n",shared_memory[column].message);
+    signal_semaphore(sem_id);
 
-    exit(0);
+
+    return 0;
 }
 

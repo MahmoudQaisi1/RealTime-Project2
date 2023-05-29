@@ -1,4 +1,4 @@
-DEFAULT_ARGS = 1 1
+DEFAULT_ARGS = 2 3
 
 all: parent helper spy sender receiver master_spy child
 
