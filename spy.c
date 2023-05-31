@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[])
 {
-    usleep(2000);
+    sleep(5);
 
     printf("im in spy\n");
     int flag = 0;
@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    int sem_id2 = semget(masterPid, 1, 0);
+    int sem_id2 = semget(masterPid, 2, 0);
     if (sem_id2 < 0)
     {
         perror("semget2");
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 
     while (1)
     {
-        int random_index = rand() % num_of_colomns;
+        int random_index = rand() % num_of_colomns +1;
         wait_semaphore(sem_id);
         wait_semaphore(sem_id2);
 
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 
         signal_semaphore(sem_id2);
         signal_semaphore(sem_id);
-        usleep(1000);
+        sleep(2);
     }
 
     return 0;

@@ -1,6 +1,5 @@
-DEFAULT_ARGS = 2 3
 
-all: parent helper spy sender receiver master_spy child
+all: parent helper spy sender receiver master_spy child openGl
 
 parent: parent.c
 	gcc -g parent.c -o parent
@@ -9,7 +8,7 @@ spy: spy.c
 	gcc -g spy.c -o spy
 
 helper: helper.c
-	gcc -g spy.c -o helper
+	gcc -g helper.c -o helper
 
 sender: sender.c
 	gcc -g sender.c -o sender
@@ -17,17 +16,17 @@ sender: sender.c
 receiver: receiver.c
 	gcc -g receiver.c -o receiver
 
-masterSpy: masterSpy.c
+masterSpy: master_spy.c
 	gcc -g master_spy.c -o master_spy
 
 child: child.c
 	gcc -g child.c -o child
 
-run:
-	./parent $(ARGS)
+openGl: openGl.c
+	gcc -g openGl.c -o openGl -lglut -lGLU -lGL -lm
 
-default-run:
-	./parent $(DEFAULT_ARGS)
+run:
+	./parent
 
 clean:
-	rm -f parent spy receiver master_spy child sender helper 
+	rm -f parent spy receiver master_spy child sender helper openGl

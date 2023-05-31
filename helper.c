@@ -4,7 +4,7 @@
 
 int main(int argc, char *argv[])
 {
-    usleep(1000);
+    sleep(5);
 
     printf("im in helper\n");
     int flag = 0;
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    int sem_id = semget((int)ppid, 1, 0);
+    int sem_id = semget((int)ppid, 2, 0);
     if (sem_id < 0)
     {
         perror("semget");
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
         printf("@@helper Process: I swaped Message %d and Message %d @@\n", index1 + 1, index2 + 1);
 
         signal_semaphore(sem_id);
-        usleep(2000);
+       sleep(1);
     }
 
     return 0;

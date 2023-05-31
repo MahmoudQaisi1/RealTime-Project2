@@ -129,9 +129,11 @@ char columns[MaxLength][MaxWidth];
 
 int flag;
 int *isRecived;
-int shmid;
+int shmid, shmid2;
 SharedMemory *shared_memory;
-int sem_id;
+int sem_id,sem_id2;
+openGL *open_gl;
+int openCounter;
 
 int main(int argc, char *argv[])
 {
@@ -156,7 +158,7 @@ int main(int argc, char *argv[])
 
     pid_t pid = getpid();
 
-    shmid = shmget((int)pid, SHM_SIZE, IPC_CREAT | 0666);
+    shmid = shmget((int)pid, SHM_SIZE*sizeof(SharedMemory), IPC_CREAT | 0666);
     if (shmid < 0)
     {
         perror("shmget");
@@ -170,16 +172,38 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    sem_id = semget((int)pid, 1, IPC_CREAT | 0666);
+    sem_id = semget((int)pid, 2, IPC_CREAT | 0666);
     if (sem_id < 0)
     {
         perror("semget");
         exit(1);
     }
-
     union semun sem_union;
     sem_union.val = 1;
     semctl(sem_id, 0, SETVAL, sem_union);
+
+
+    //Accessing the shared memory and semaphores for openGL//////////////////////////////////////////////////////////
+    shmid2 = shmget(1, sizeof(openGL), 0);
+    if (shmid2 < 0)
+    {
+        perror("shmget receiver... openGL");
+        exit(1);
+    }
+
+    open_gl = (openGL *)shmat(shmid2, NULL, 0);
+    if (open_gl == (openGL *)-1)
+    {
+        perror("shmat receiver...");
+        exit(1);
+    }
+
+    sem_id2 = semget(1, 2, 0);
+    if (sem_id2 < 0)
+    {
+        perror("semget receiver");
+        exit(1);
+    }
 
     while (1);
 
@@ -194,7 +218,7 @@ void sendsignal(int the_signal)
     {
 
         wait_semaphore(sem_id);
-
+        openCounter = 0;
         printf("Master Process: Here what i Recived:\n");
         for (i = 0; i < num_of_colomns; i++)
         {
@@ -215,10 +239,16 @@ void sendsignal(int the_signal)
                         strncpy(columns[i], shared_memory[i].message, MaxWidth - 1);
                     }
                 }
+                openCounter++;
             }
         }
         printf("\n");
         signal_semaphore(sem_id);
+
+        wait_semaphore(sem_id2);
+        open_gl->spy = openCounter;
+        printf("Messages I have: %d\n",open_gl->spy);
+        signal_semaphore(sem_id2);
         for ( i = 0; i < num_of_colomns; i++) /////check if we have recived all the colomns//////
         {
             if (isRecived[i] == 0)
@@ -231,60 +261,94 @@ void sendsignal(int the_signal)
                 flag = 1;
             }
         }
-        usleep(500);
+        sleep(2);
     }
     printf("--------------Master Spy Got all the colomns-------------\n");
 
-    /////decode the colomns//////////////////////////////////////////////////////
-    int colLength = 0,j,row,col,r;
-    char tempString[MaxWidth];
-    strncpy(tempString, columns[0], MaxWidth);
-
-    char *token = strtok(tempString, "/"); // find the colomn length////////////
-    while (token != NULL)
+    int j,startIndex,finishIndex,wordChar = 1,saveIndex;
+    int numberOfLines = 0;
+    for (i = 0; i < num_of_colomns; i++)
     {
-        colLength++;
-        token = strtok(NULL, "/");
-    }
-    char allwords[num_of_colomns][colLength][MaxWidth]; // split the colomn string inside an array////////////
-
-    for ( i = 0; i < num_of_colomns; i++)
-    {
-        int wordCount = 0;
-        char tempString[MaxWidth];
-        strncpy(tempString, columns[i], MaxWidth);
-
-        char **words = splitString(tempString, "/", &wordCount);
-
-        for ( j = 0; j < wordCount; j++)
+        for (j = 2; j < MaxWidth; j++)
         {
-            strncpy(allwords[i][j], words[j], MaxWidth);
+            switch (columns[i][j])
+        {
+        case 'A'...'Z':
+            columns[i][j] =  ((columns[i][j] - 'A' - (wordChar * (i+1))% 26 + 26) % 26) + 'A';
+            wordChar++;
+            break;
+        case 'a' ... 'z':
+            columns[i][j] =  ((columns[i][j] - 'a' - (wordChar *(i+1))% 26 + 26) % 26 ) + 'a';
+            wordChar++;
+            break;
+        case '#':
+            startIndex = j;
+            do {
+                    j++;
+            } while (columns[i][j] != '#');
+            int num = atoi(&columns[i][startIndex + 1]);
+            finishIndex = j + num + 1;
+            num = atoi(&columns[i][j+1]);
+            char oldNum[15];
+            snprintf(oldNum, sizeof(oldNum), "%d", 1000000 - num);
+            int oldNumLen = strlen(oldNum);
+            memmove(&columns[i][startIndex + oldNumLen], &columns[i][finishIndex + 1], strlen(&columns[i][finishIndex + 1]) + 1);
+            memcpy(&columns[i][startIndex], oldNum, oldNumLen);
+            j = finishIndex;  
+            break;
+        case '1':
+            columns[i][j] = '!';
+            break;
+        case '2':
+            columns[i][j] = '?';
+            break;
+        case '3':
+            columns[i][j] = ',';
+            break;
+        case '4':
+            columns[i][j] = ';';
+            break;
+        case '5':
+            columns[i][j] = ';';
+            break;
+        case '6':
+           columns[i][j] = '%';
+            break;
+        case '/':
+            wordChar = 1;
+            numberOfLines++;
+            break;
+        default:
+            break;
         }
-
-        free(words);
+        }
     }
-
-    for ( r = 0; r < num_of_colomns; r++)
-    {
-        replaceStrings(allwords[r], colLength);
-        decodeMessage(allwords[r], colLength);
-    }
-
     FILE *file = fopen("spy.txt", "w"); // Open the file in write mode
-    if (file == NULL)
+    char decodedLines[numberOfLines][MaxWidth];
+    int currentLine;
+    for (i = 0; i <num_of_colomns; i++)
     {
-        printf("Error opening the file.\n");
-        exit(4);
-    }
-    for ( row = 1; row < num_of_colomns; row++)
-    {
-        for ( col = 0; col < colLength; col++)
+        currentLine = 0;
+        char *word = strtok(columns[i], "/");
+        word = strtok(NULL, "/");
+        while (word != NULL)
         {
-            fprintf(file, "%s ", allwords[col][row]); // Write to the file
+            if(i == 0 ){
+            strcpy(decodedLines[currentLine],"");
+            if(strcmp(word,"alright") != 0)
+                sprintf(decodedLines[currentLine],"%s", word);
+            }else{
+                if(strcmp(word,"alright") != 0)
+                    sprintf(decodedLines[currentLine],"%s %s",decodedLines[currentLine],word);
+            }
+            word = strtok(NULL, "/");
+            currentLine++;
         }
-        fprintf(file, "\n");
     }
-
+    for (i = 0; i < currentLine; i++)
+    {
+        fprintf(file,"%s\n", decodedLines[i]);
+    }    
     fclose(file); // Close the file
     for (i = 0; i < num_of_colomns; i++) /////// erase the previous results //////////
     {

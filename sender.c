@@ -5,7 +5,7 @@
 main(int argc, char *argv[])
 {
     pid_t          pid=getpid(),ppid = getppid();
-    char line[1024];
+    char line[512];
     int maxWords = 0;
     int currentWords = 0;
     int numLines = 0;
@@ -31,10 +31,10 @@ main(int argc, char *argv[])
         }
     }
     fclose(file);
-
+    
 //Spilt into columns///////////////////////////////////////////////////////////////
     file = fopen("sender.txt", "r");
-    char array[maxWords][1024];
+    char array[maxWords][512];
     int colmnIndex = 0;
 
     for ( i = 0; i < maxWords; i++)
@@ -66,18 +66,18 @@ main(int argc, char *argv[])
     int shmid = shmget((int)ppid, SHM_SIZE, 0);
     if (shmid < 0)
     {
-        perror("shmget");
+        perror("shmget sender...");
         exit(1);
     }
 
     SharedMemory *shared_memory = (SharedMemory *)shmat(shmid, NULL, 0);
     if (shared_memory == (SharedMemory *)-1)
     {
-        perror("shmat");
+        perror("shmat sender...");
         exit(1);
     }
 
-    int sem_id = semget((int)ppid, 1, 0);
+    int sem_id = semget((int)ppid, 2, 0);
     if (sem_id < 0)
     {
         perror("semget");
@@ -85,6 +85,27 @@ main(int argc, char *argv[])
     }
 
 
+    //Accessing the shared memory and semaphores for openGL//////////////////////////////////////////////////////////
+    int shmid2 = shmget(1, sizeof(openGL), 0);
+    if (shmid2 < 0)
+    {
+        perror("shmget sender... openGL");
+        exit(1);
+    }
+
+    openGL *open_gl = (openGL *)shmat(shmid2, NULL, 0);
+    if (open_gl == (openGL *)-1)
+    {
+        perror("shmat sender...");
+        exit(1);
+    }
+
+    int sem_id2 = semget(1, 2, 0);
+    if (sem_id2 < 0)
+    {
+        perror("semget");
+        exit(1);
+    }
     // forking the needed children processes//////////////////////////////////////////////////////////////
     pid_t child[maxWords];
     char arg1[10];
@@ -100,8 +121,10 @@ main(int argc, char *argv[])
             perror("execl -- child");
             exit(6);
         }
-        printf("child: %d\n",(int)child[i]);
-    sleep(1.5);
+        wait_semaphore(sem_id2);
+        open_gl->messages++;
+        signal_semaphore(sem_id2);
+    sleep(0.5);
     }
     sleep(2);
     //Waking up parent and sending the number of columns needed///////////////////////////////////////////
@@ -109,9 +132,7 @@ main(int argc, char *argv[])
     sprintf(columnStr,"%d",maxWords);
     strcpy(shared_memory[0].message,columnStr);
     printf("Done coding the message...\n");
-    
-    kill(getppid(),SIGCONT);
-
+    kill((pid_t) ppid,SIGCONT);
     while (1);//waiting for more instructions...
     
 }

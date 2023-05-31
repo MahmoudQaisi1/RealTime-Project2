@@ -1,0 +1,5 @@
+helper=2
+spy=3
+successThreshold=1
+failingThreshold=1
+finish
