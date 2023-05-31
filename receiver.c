@@ -301,7 +301,7 @@ void sendsignal(int the_signal)
             int oldNumLen = strlen(oldNum);
             memmove(&columns[i][startIndex + oldNumLen], &columns[i][finishIndex + 1], strlen(&columns[i][finishIndex + 1]) + 1);
             memcpy(&columns[i][startIndex], oldNum, oldNumLen);
-            j = finishIndex;  
+            j = startIndex + oldNumLen;
             break;
         case '1':
             columns[i][j] = '!';

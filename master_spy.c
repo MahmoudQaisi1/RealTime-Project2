@@ -285,7 +285,7 @@ void sendsignal(int the_signal)
             startIndex = j;
             do {
                     j++;
-            } while (columns[i][j] != '#');
+            } while (columns[i][j] != '#'); 
             int num = atoi(&columns[i][startIndex + 1]);
             finishIndex = j + num + 1;
             num = atoi(&columns[i][j+1]);
@@ -294,7 +294,7 @@ void sendsignal(int the_signal)
             int oldNumLen = strlen(oldNum);
             memmove(&columns[i][startIndex + oldNumLen], &columns[i][finishIndex + 1], strlen(&columns[i][finishIndex + 1]) + 1);
             memcpy(&columns[i][startIndex], oldNum, oldNumLen);
-            j = finishIndex;  
+            j = startIndex + oldNumLen;
             break;
         case '1':
             columns[i][j] = '!';

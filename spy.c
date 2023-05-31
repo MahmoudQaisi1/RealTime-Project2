@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 
         signal_semaphore(sem_id2);
         signal_semaphore(sem_id);
-        sleep(rand()%6+3);
+        sleep(rand()%5+2);
     }
 
     return 0;

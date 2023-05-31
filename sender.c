@@ -124,7 +124,7 @@ main(int argc, char *argv[])
         wait_semaphore(sem_id2);
         open_gl->messages++;
         signal_semaphore(sem_id2);
-    sleep(2);
+    sleep(1);
     }
     sleep(2);
     //Waking up parent and sending the number of columns needed///////////////////////////////////////////

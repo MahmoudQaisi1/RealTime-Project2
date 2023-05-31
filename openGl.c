@@ -415,8 +415,8 @@ int z = (int) (rand()%26);
 
  int p3,p5 = (int) (rand()%10);
 
-    progress_bar3((open_gl->thresh1/open_gl->th1)*0.3);
-    progress_bar5((open_gl->thresh2/open_gl->th2)*0.3);
+    progress_bar3(((float)((float)open_gl->thresh1/open_gl->th1))*0.3);
+    progress_bar5(((float)((float)open_gl->thresh2/open_gl->th2))*0.3);
     glFlush();
 
 

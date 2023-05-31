@@ -156,13 +156,13 @@ main(int argc, char *argv[])
   semctl(sem_id2, 0, SETVAL, sem_union2);
 
     open_gl->messages = 0;
-     open_gl->encoded = 0;
-     open_gl->spy = 0;
-     open_gl->receiver = 0;
-     open_gl->thresh1 = 0;
-     open_gl->thresh2 = 0;
-     open_gl->th1 = success_threshold;
-     open_gl->th1 = failing_threshold;
+    open_gl->encoded = 0;
+    open_gl->spy = 0;
+    open_gl->receiver = 0;
+    open_gl->thresh1 = 0;
+    open_gl->thresh2 = 0;
+    open_gl->th1 = success_threshold;
+    open_gl->th2 = failing_threshold;
 
   // forking the needed processes//////////////////////////////////////////////////////////////
   //forking OpenGL///////////////////////////////////////////////////////////////////////////
@@ -172,8 +172,6 @@ main(int argc, char *argv[])
   }
   else if ( openGL_pid == 0 ) {
     execl("./openGl", "./openGl", (char *) 0);
-    perror("execl -- openGL");
-    exit(6);
   }
   //sender////////
   if ( (sender_id = fork()) == -1 ) {
@@ -215,7 +213,6 @@ main(int argc, char *argv[])
   sleep(0.5);
   
   //master Spy/////
-  printf("reciver: %d\n",(int) receiver_id);
   if ( (master_spy_id = fork()) == -1 ) {
     perror("fork -- master spy");
     exit(5); 
