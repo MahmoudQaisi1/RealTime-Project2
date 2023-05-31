@@ -51,8 +51,8 @@ int main(int argc, char *argv[])
 
         printf("@@helper Process: I swaped Message %d and Message %d @@\n", index1 + 1, index2 + 1);
 
-        signal_semaphore(sem_id);
-       sleep(1);
+       signal_semaphore(sem_id);
+       sleep(rand()%4+1);
     }
 
     return 0;

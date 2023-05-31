@@ -415,8 +415,8 @@ int z = (int) (rand()%26);
 
  int p3,p5 = (int) (rand()%10);
 
-    progress_bar3(open_gl->thresh1);
-    progress_bar5(0.3);
+    progress_bar3((open_gl->thresh1/open_gl->th1)*0.3);
+    progress_bar5((open_gl->thresh2/open_gl->th2)*0.3);
     glFlush();
 
 
@@ -465,7 +465,7 @@ void display() {
 
     // Swap the buffers to update the display
     glutSwapBuffers();
-    sleep(2);
+    sleep(1);
     glutPostRedisplay();
     // Clear the window
 

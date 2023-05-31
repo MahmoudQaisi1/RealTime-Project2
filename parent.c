@@ -265,6 +265,8 @@ main(int argc, char *argv[])
  
   while (1);
 }
+
+
 void success(int the_signal)    // when reciver send a signal///////////////////////////////////////////////////////////////////////
 {
   success_counter++;
@@ -286,7 +288,10 @@ void success(int the_signal)    // when reciver send a signal///////////////////
     {
       printf("########### Receiver finished But Decoding Failed############\n\n\n");
     }
-
+    wait_semaphore(sem_id2);
+     open_gl->receiver = 0;
+     open_gl->thresh1++;
+    signal_semaphore(sem_id2);
     kill(receiver_id, SIGUSR1);
   }
   else
@@ -322,6 +327,10 @@ void success(int the_signal)    // when reciver send a signal///////////////////
     shmdt(shared_memory);
     shmctl(shmid, IPC_RMID, (struct shmid_ds *)0); 
     semctl(sem_id, 0, IPC_RMID, 0);
+
+    shmdt(open_gl);
+    shmctl(shmid2, IPC_RMID, (struct shmid_ds *)0);
+    semctl(sem_id2, 0, IPC_RMID, 0);
     printf("Processes are terminated\n");
 
     exit(0);
@@ -350,6 +359,11 @@ void failed(int the_signal) // when master spy send a signal////////////////////
     {
       printf("########### Spy finished But Decoding Failed############\n\n\n");
     }
+
+    wait_semaphore(sem_id2);
+    open_gl->spy = 0;
+    open_gl->thresh2++;
+    signal_semaphore(sem_id2);
     kill(master_spy_id, SIGUSR2);
   }
   else
@@ -384,6 +398,10 @@ void failed(int the_signal) // when master spy send a signal////////////////////
     shmdt(shared_memory);
     shmctl(shmid, IPC_RMID, (struct shmid_ds *)0);
     semctl(sem_id, 0, IPC_RMID, 0);
+
+    shmdt(open_gl);
+    shmctl(shmid2, IPC_RMID, (struct shmid_ds *)0);
+    semctl(sem_id2, 0, IPC_RMID, 0);
     printf("Processes are terminated\n");
 
     exit(0);

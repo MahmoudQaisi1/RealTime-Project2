@@ -127,10 +127,9 @@ main(int argc, char *argv[])
         perror("semget");
         exit(1);
     }
-
+    sleep(1);
     wait_semaphore(sem_id2);
     open_gl->encoded++;
-    open_gl->messages--;
     signal_semaphore(sem_id2);
 
     return 0;

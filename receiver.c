@@ -267,7 +267,7 @@ void sendsignal(int the_signal)
                 flag = 1;
             }
         }
-        sleep(2);
+        sleep(1.5);
     }
     printf("++++++++++++++Receiver Got all the colomns+++++++++++++++\n");
     /////decode the colomns//////////////////////////////////////////////////////

@@ -1,5 +1,5 @@
 helper=2
 spy=3
-successThreshold=1
-failingThreshold=1
+successThreshold=2
+failingThreshold=2
 finish
